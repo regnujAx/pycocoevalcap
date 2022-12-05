@@ -1,1 +1,6 @@
+tmp/
+
 *.pyc
+
+# exclude Stanford Core NLP JARs (will be downloaded in get_stanford_models.py)
+stanford-corenlp-3.6.0*.jar

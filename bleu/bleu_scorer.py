@@ -17,7 +17,7 @@ cook_test(test, refs, n=4): Transform a test sentence as a string (together with
 '''
 
 import copy
-import sys, math, re
+import math
 from collections import defaultdict
 
 def precook(s, n=4, out=False):
@@ -259,6 +259,9 @@ class BleuScorer(object):
         if verbose > 0:
             print(totalcomps)
             print("ratio:", ratio)
+            file = open("evaluation.txt", 'a')
+            file.write(str(totalcomps))
+            file.write("\nratio: %0.5f\n"%(ratio))
 
         self._score = bleus
         return self._score, bleu_list

@@ -1,11 +1,8 @@
 from __future__ import division
 import os
-import sys
 import subprocess
-import threading
 import json
 import numpy as np
-import ast
 import tempfile
 
 from .get_stanford_models import get_stanford_models
@@ -67,13 +64,13 @@ class Spice:
         if not os.path.exists(cache_dir):
           os.makedirs(cache_dir)
         spice_cmd = ['java', '-jar', '-Xmx8G', SPICE_JAR, in_file.name,
-          '-cache', cache_dir,
+          # cache has a size of ca. 100 GB
+          # '-cache', cache_dir,
           '-out', out_file.name,
           '-subset',
           '-silent'
         ]
-        subprocess.check_call(spice_cmd, 
-            cwd=os.path.dirname(os.path.abspath(__file__)))
+        subprocess.check_call(spice_cmd, cwd=cwd)
 
         # Read and process results
         with open(out_file.name) as data_file:    

@@ -48,6 +48,8 @@ class COCOEvalCap:
         # =================================================
         # Compute scores
         # =================================================
+
+        file = open("evaluation.txt", 'a')
         for scorer, method in scorers:
             print('computing %s score...'%(scorer.method()))
             score, scores = scorer.compute_score(gts, res)
@@ -56,10 +58,14 @@ class COCOEvalCap:
                     self.setEval(sc, m)
                     self.setImgToEvalImgs(scs, gts.keys(), m)
                     print("%s: %0.3f"%(m, sc))
+                    file.write("%s: %0.3f\n"%(m, sc))
             else:
                 self.setEval(score, method)
                 self.setImgToEvalImgs(scores, gts.keys(), method)
                 print("%s: %0.3f"%(method, score))
+                file.write("%s: %0.3f\n"%(method, score))
+        file.write("\n")
+        file.close()
         self.setEvalImgs()
 
     def setEval(self, score, method):
