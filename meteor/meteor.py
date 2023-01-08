@@ -36,15 +36,18 @@ class Meteor:
             stat = self._stat(res[i][0], gts[i])
             eval_line += ' ||| {}'.format(stat)
 
-        # self.meteor_p.stdin.write('{}\n'.format(eval_line).encode())
+        self.meteor_p.stdin.write('{}\n'.format(eval_line).encode())
+        for i in range(0, len(imgIds)):
+            scores.append(float(self.meteor_p.stdout.readline().strip()))
+        score = float(self.meteor_p.stdout.readline().strip())
 
         # Replace OS depending separators
-        self.meteor_p.stdin.write('{}\n'.format(eval_line).replace('.', ',').encode())
-        self.meteor_p.stdin.flush()
-        score_string = self.meteor_p.stdout.readline().strip()
-        score = float(score_string)
-        for i in range(0, len(imgIds)):
-            scores.append(score)
+        # self.meteor_p.stdin.write('{}\n'.format(eval_line).replace('.', ',').encode())
+        # self.meteor_p.stdin.flush()
+        # score_string = self.meteor_p.stdout.readline().strip()
+        # score = float(score_string)
+        # for i in range(0, len(imgIds)):
+        #     scores.append(score)
         self.lock.release()
 
         return score, scores
@@ -56,6 +59,7 @@ class Meteor:
         # SCORE ||| reference 1 words ||| reference n words ||| hypothesis words
         hypothesis_str = hypothesis_str.replace('|||','').replace('  ',' ')
         score_line = ' ||| '.join(('SCORE', ' ||| '.join(reference_list), hypothesis_str))
+        score_line = score_line.replace('\n', '').replace('\r', '')
         self.meteor_p.stdin.write('{}\n'.format(score_line).encode())
         self.meteor_p.stdin.flush()
         return self.meteor_p.stdout.readline().decode().strip()
