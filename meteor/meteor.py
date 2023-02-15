@@ -52,10 +52,13 @@ class Meteor:
 
         self.meteor_p.stdin.write('{}\n'.format(eval_line).encode())
         self.meteor_p.stdin.flush()
-        score_string = self.meteor_p.stdout.readline().strip()
-        score = float(score_string)
-        for i in range(0, len(imgIds)):
-            scores.append(score)
+        while len(scores) <= len(imgIds):
+            score_string = self.meteor_p.stdout.readline().strip()
+            score_strings = score_string.split()
+            for s in score_strings:
+                score = float(s)
+                scores.append(score)
+        score = scores[-1]
         self.lock.release()
 
         return score, scores
