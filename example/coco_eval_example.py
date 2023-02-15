@@ -22,4 +22,4 @@ coco_eval.evaluate()
 
 # print output evaluation scores
 for metric, score in coco_eval.eval.items():
-    print(f'{metric}: {score:.3f}')
+    print(f'{metric}: {score:.3f}', flush=True)

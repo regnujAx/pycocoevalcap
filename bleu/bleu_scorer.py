@@ -240,7 +240,7 @@ class BleuScorer(object):
                     bleu_list[k][-1] *= math.exp(1 - 1/ratio)
 
             if verbose > 1:
-                print(comps, reflen)
+                print(comps, reflen, flush=True)
 
         totalcomps['reflen'] = self._reflen
         totalcomps['testlen'] = self._testlen
@@ -257,11 +257,12 @@ class BleuScorer(object):
                 bleus[k] *= math.exp(1 - 1/ratio)
 
         if verbose > 0:
-            print(totalcomps)
-            print("ratio:", ratio)
+            print(totalcomps, flush=True)
+            print("ratio:", ratio, flush=True)
             file = open("evaluation.txt", 'a')
             file.write(str(totalcomps))
             file.write("\nratio: %0.5f\n"%(ratio))
+            file.close()
 
         self._score = bleus
         return self._score, bleu_list

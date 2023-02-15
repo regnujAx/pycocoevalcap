@@ -15,18 +15,18 @@ def print_progress(transferred_blocks, block_size, total_size):
     total_mb = total_size / 1024 / 1024
     percent = current_mb / total_mb
     progress_str = "Progress: {:5.1f}M / {:5.1f}M ({:6.1%})"
-    print(progress_str.format(current_mb, total_mb, percent), end='\r')
+    print(progress_str.format(current_mb, total_mb, percent), end='\r', flush=True)
 
 
 def get_stanford_models():
     jar_name = os.path.join(SPICEDIR, SPICELIB, '{}.jar'.format(JAR))
     # Only download file if file does not yet exist. Else: do nothing
     if not os.path.exists(jar_name):
-        print('Downloading {} for SPICE ...'.format(JAR))
+        print('Downloading {} for SPICE ...'.format(JAR), flush=True)
         url = 'http://nlp.stanford.edu/software/{}.zip'.format(CORENLP)
         zip_file, headers = urlretrieve(url, reporthook=print_progress)
         print()
-        print('Extracting {} ...'.format(JAR))
+        print('Extracting {} ...'.format(JAR), flush=True)
         file_name = os.path.join(CORENLP, JAR)
         # file names in zip use '/' separator regardless of OS
         zip_file_name = '/'.join([CORENLP, JAR])
@@ -38,7 +38,7 @@ def get_stanford_models():
 
         os.rmdir(os.path.join(SPICEDIR, CORENLP))
         os.remove(zip_file)
-        print('Done.')
+        print('Done.', flush=True)
 
 
 if __name__ == '__main__':
