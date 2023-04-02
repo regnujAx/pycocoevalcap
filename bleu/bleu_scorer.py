@@ -260,6 +260,7 @@ class BleuScorer(object):
             print(totalcomps, flush=True)
             print("ratio:", ratio, flush=True)
             file = open("evaluation.txt", 'a')
+            file.write("\n")
             file.write(str(totalcomps))
             file.write("\nratio: %0.5f\n"%(ratio))
             file.close()
