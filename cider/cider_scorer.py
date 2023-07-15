@@ -5,24 +5,24 @@
 import copy
 from collections import defaultdict
 import numpy as np
-import pdb
 import math
 
 def precook(s, n=4, out=False):
-    """
+    '''
     Takes a string as input and returns an object that can be given to
     either cook_refs or cook_test. This is optional: cook_refs and cook_test
     can take string arguments as well.
     :param s: string : sentence to be converted into ngrams
     :param n: int    : number of ngrams for which representation is calculated
     :return: term frequency vector for occuring ngrams
-    """
+    '''
     words = s.split()
     counts = defaultdict(int)
     for k in range(1,n+1):
         for i in range(len(words)-k+1):
             ngram = tuple(words[i:i+k])
             counts[ngram] += 1
+
     return counts
 
 def cook_refs(refs, n=4): ## lhuang: oracle will call with "average"
@@ -45,31 +45,35 @@ def cook_test(test, n=4):
     return precook(test, n, True)
 
 class CiderScorer(object):
-    """CIDEr scorer.
-    """
+    """CIDEr scorer."""
 
     def copy(self):
-        ''' copy the refs.'''
+        '''copy the refs.'''
         new = CiderScorer(n=self.n)
         new.ctest = copy.copy(self.ctest)
         new.crefs = copy.copy(self.crefs)
         return new
 
-    def __init__(self, test=None, refs=None, n=4, sigma=6.0):
-        ''' singular instance '''
+    def __init__(self, test=None, refs=None, class_refs=None, n=4, sigma=6.0):
+        '''singular instance'''
         self.n = n
         self.sigma = sigma
         self.crefs = []
+        self.cclass_refs = []
         self.ctest = []
         self.document_frequency = defaultdict(float)
-        self.cook_append(test, refs)
+        self.document_frequency_class = defaultdict(float)
+        self.cook_append(test, refs, class_refs)
         self.ref_len = None
+        self.ref_class_len = None
 
-    def cook_append(self, test, refs):
+    def cook_append(self, test, refs, class_refs):
         '''called by constructor and __iadd__ to avoid creating new instances.'''
-
         if refs is not None:
             self.crefs.append(cook_refs(refs))
+            if class_refs is not None:
+                for ref in class_refs:
+                    self.cclass_refs.append(cook_refs(ref))
             if test is not None:
                 self.ctest.append(cook_test(test)) ## N.B.: -1
             else:
@@ -81,15 +85,16 @@ class CiderScorer(object):
 
     def __iadd__(self, other):
         '''add an instance (e.g., from another sentence).'''
-
         if type(other) is tuple:
             ## avoid creating new CiderScorer instances
-            self.cook_append(other[0], other[1])
+            self.cook_append(other[0], other[1], other[2])
         else:
             self.ctest.extend(other.ctest)
             self.crefs.extend(other.crefs)
+            self.cclass_refs.extend(other.cclass_refs)
 
         return self
+
     def compute_doc_freq(self):
         '''
         Compute term frequency for reference data.
@@ -101,10 +106,13 @@ class CiderScorer(object):
             # refs, k ref captions of one image
             for ngram in set([ngram for ref in refs for (ngram,count) in ref.items()]):
                 self.document_frequency[ngram] += 1
-            # maxcounts[ngram] = max(maxcounts.get(ngram,0), count)
+        for refs in self.cclass_refs:
+            # refs, k ref captions of one image
+            for ngram in set([ngram for ref in refs for (ngram,count) in ref.items()]):
+                self.document_frequency_class[ngram] += 1
 
     def compute_cider(self):
-        def counts2vec(cnts):
+        def counts2vec(cnts, classwise):
             """
             Function maps counts of ngram to vector of tfidf weights.
             The function returns vec, an array of dictionary that store mapping of n-gram and tf-idf weights.
@@ -115,19 +123,26 @@ class CiderScorer(object):
             vec = [defaultdict(float) for _ in range(self.n)]
             length = 0
             norm = [0.0 for _ in range(self.n)]
-            for (ngram,term_freq) in cnts.items():
+
+            for (ngram, term_freq) in cnts.items():
                 # give word count 1 if it doesn't appear in reference corpus
-                df = np.log(max(1.0, self.document_frequency[ngram]))
+                if classwise:
+                    df = np.log(max(1.0, self.document_frequency_class[ngram]))
+                    ref_len = self.ref_class_len
+                else:
+                    df = np.log(max(1.0, self.document_frequency[ngram]))
+                    ref_len = self.ref_len
                 # ngram index
                 n = len(ngram)-1
                 # tf (term_freq) * idf (precomputed idf) for n-grams
-                vec[n][ngram] = float(term_freq)*(self.ref_len - df)
+                vec[n][ngram] = float(term_freq)*(ref_len - df)
                 # compute norm for the vector.  the norm will be used for computing similarity
                 norm[n] += pow(vec[n][ngram], 2)
 
                 if n == 1:
                     length += term_freq
             norm = [np.sqrt(n) for n in norm]
+
             return vec, norm, length
 
         def sim(vec_hyp, vec_ref, norm_hyp, norm_ref, length_hyp, length_ref):
@@ -144,49 +159,69 @@ class CiderScorer(object):
             delta = float(length_hyp - length_ref)
             # measure consine similarity
             val = np.array([0.0 for _ in range(self.n)])
+
             for n in range(self.n):
                 # ngram
-                for (ngram,count) in vec_hyp[n].items():
+                for (ngram, count) in vec_hyp[n].items():
                     # vrama91 : added clipping
                     val[n] += min(vec_hyp[n][ngram], vec_ref[n][ngram]) * vec_ref[n][ngram]
 
                 if (norm_hyp[n] != 0) and (norm_ref[n] != 0):
-                    val[n] /= (norm_hyp[n]*norm_ref[n])
+                    val[n] /= (norm_hyp[n] * norm_ref[n])
 
                 assert(not math.isnan(val[n]))
                 # vrama91: added a length based gaussian penalty
                 val[n] *= np.e**(-(delta**2)/(2*self.sigma**2))
+
             return val
+
+        def calculate_scores(references, classwise=False):
+            scores = []
+
+            for test, refs in zip(self.ctest, references):
+                # compute vector for test captions
+                vec, norm, length = counts2vec(test, classwise)
+                # compute vector for ref captions
+                score = np.array([0.0 for _ in range(self.n)])
+
+                for ref in refs:
+                    vec_ref, norm_ref, length_ref = counts2vec(ref, classwise)
+                    val = sim(vec, vec_ref, norm, norm_ref, length, length_ref)
+                    score += val
+
+                # change by vrama91 - mean of ngram scores, instead of sum
+                score_avg = np.mean(score)
+                # divide by number of references
+                score_avg /= len(refs)
+                # multiply score by 10
+                score_avg *= 10.0
+                # append score of an image to the score list
+                scores.append(score_avg)
+
+            return scores
 
         # compute log reference length
         self.ref_len = np.log(float(len(self.crefs)))
+        self.ref_class_len = np.log(float(len(self.cclass_refs)))
 
-        scores = []
-        for test, refs in zip(self.ctest, self.crefs):
-            # compute vector for test captions
-            vec, norm, length = counts2vec(test)
-            # compute vector for ref captions
-            score = np.array([0.0 for _ in range(self.n)])
-            for ref in refs:
-                vec_ref, norm_ref, length_ref = counts2vec(ref)
-                score += sim(vec, vec_ref, norm, norm_ref, length, length_ref)
-            # change by vrama91 - mean of ngram scores, instead of sum
-            score_avg = np.mean(score)
-            # divide by number of references
-            score_avg /= len(refs)
-            # multiply score by 10
-            score_avg *= 10.0
-            # append score of an image to the score list
-            scores.append(score_avg)
-        return scores
+        scores = calculate_scores(self.crefs)
+        scores_class = calculate_scores(self.cclass_refs, classwise=True)
 
-    def compute_score(self, option=None, verbose=0):
+        return scores, scores_class
+
+    def compute_score(self):
         # compute idf
         self.compute_doc_freq()
         # assert to check document frequency
         assert(len(self.ctest) >= max(self.document_frequency.values()))
         # compute cider score
-        score = self.compute_cider()
-        # debug
-        # print score
-        return np.mean(np.array(score)), np.array(score)
+        scores, scores_class = self.compute_cider()
+
+        ciders = []
+        cider_list = []
+        ciders.append(np.mean(np.array(scores)))
+        ciders.append(np.mean(np.array(scores_class)))
+        cider_list.append(scores)
+        cider_list.append(scores_class)
+
+        return ciders, cider_list
