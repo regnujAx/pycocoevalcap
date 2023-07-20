@@ -41,7 +41,9 @@ class Cider:
         for id in imgIds:
             hypo = res[id]
             ref = gts[id]
+
             ref_class = []
+            ref_class.append(ref)
 
             for class_ref in class_refs[id]:
                 ref_class.append(gts[class_ref])
