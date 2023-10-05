@@ -18,12 +18,11 @@ class COCOEvalCap:
 
     def evaluate(self):
         imgIds = self.params['image_id']
-        # imgIds = self.coco.getImgIds()
         gts = {}
         res = {}
         for imgId in imgIds:
-            gts[imgId] = self.coco.imgToAnns[imgId]
-            res[imgId] = self.cocoRes.imgToAnns[imgId]
+            gts[imgId] = self.coco.imgToAnns[imgId]     # ground-truth/original sentences
+            res[imgId] = self.cocoRes.imgToAnns[imgId]  # predicted sentence
 
         # =================================================
         # Set up scorers
@@ -41,8 +40,8 @@ class COCOEvalCap:
             (Bleu(4), ["Bleu_1", "Bleu_2", "Bleu_3", "Bleu_4"]),
             # (Meteor(),"METEOR"),
             (Rouge(), "ROUGE_L"),
-            (Cider(), "CIDEr"),
-            (Spice(), "SPICE")
+            (Cider(), ["CIDEr", "CIDEr_class_similarity"])#,
+            # (Spice(), "SPICE")
         ]
 
         # =================================================

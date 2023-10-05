@@ -34,19 +34,31 @@ class Cider:
 
         cider_scorer = CiderScorer(n=self._n, sigma=self._sigma)
 
+        class_refs = {}
+        for key in imgIds:
+            class_refs[key] = [id for id in imgIds if id.startswith(key[0:3]) and id != key]
+
         for id in imgIds:
             hypo = res[id]
             ref = gts[id]
+
+            ref_class = []
+            ref_class.append(ref)
+
+            for class_ref in class_refs[id]:
+                ref_class.append(gts[class_ref])
 
             # Sanity check.
             assert(type(hypo) is list)
             assert(len(hypo) == 1)
             assert(type(ref) is list)
             assert(len(ref) > 0)
+            assert(type(ref_class) is list)
+            assert(len(ref_class) > 0)
 
-            cider_scorer += (hypo[0], ref)
+            cider_scorer += (hypo[0], ref, ref_class)
 
-        (score, scores) = cider_scorer.compute_score()
+        score, scores = cider_scorer.compute_score()
 
         return score, scores
 
